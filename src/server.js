@@ -289,7 +289,7 @@ function createServer() {
 }
 
 export function createApp({
-  token = process.env.MCP_API_KEY || '',
+  token = '',
   allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
     .split(',')
     .map(origin => origin.trim())
