@@ -77,5 +77,5 @@ export function buildBrief(caseId, sender = {}) {
 
   'If email_status.eligible_for_email is false, return subject and body as null and explain the reasons in review_notes. Never send an email. Every draft requires human review.'
 ]
-    ]};
+    };
 }
