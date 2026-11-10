@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scoring rules · Lead Review</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="scoring-rules.css">
+</head>
+<body class="sr-body">
+  <div class="sr-app">
+
+    <!-- ========== Sidebar ========== -->
+    <aside class="sr-sidebar">
+      <div class="sr-brand">Lead Review</div>
+      <nav class="sr-nav" aria-label="Main">
+        <a class="sr-nav__item" href="/#/queue">Review queue</a>
+        <a class="sr-nav__item" href="/#/queue?tab=sent">Demo approvals</a>
+        <a class="sr-nav__item" href="/#/queue?tab=rejected">Rejected</a>
+        <div class="sr-nav__heading">Settings</div>
+        <a class="sr-nav__item sr-nav__item--active" href="scoring-rules.html" aria-current="page">Scoring rules</a>
+        <a class="sr-nav__item" href="/#/scraper">Scraper runs</a>
+      </nav>
+    </aside>
+
+    <!-- ========== Main ========== -->
+    <main class="sr-main">
+      <header class="sr-header">
+        <div>
+          <h1 class="sr-title">Scoring rules</h1>
+          <p class="sr-subtitle">These rules decide each lead's 0 to 100 score. Changes apply to new leads. Existing leads can be re-scored.</p>
+        </div>
+        <div class="sr-header__actions">
+          <span class="sr-dirty" id="sr-dirty" hidden>Unsaved changes</span>
+          <button type="button" class="sr-btn sr-btn--secondary" id="sr-rescore-btn">Re-score open leads</button>
+          <button type="button" class="sr-btn sr-btn--primary" id="sr-save-btn">Save changes</button>
+        </div>
+      </header>
+
+      <!-- Weights -->
+      <section class="sr-card">
+        <h2 class="sr-card__title">Weights</h2>
+        <div class="sr-weights" id="sr-weights">
+          <div class="sr-weights__seg sr-weights__seg--industry" id="sr-seg-industry"><span></span></div>
+          <div class="sr-weights__seg sr-weights__seg--size" id="sr-seg-size"><span></span></div>
+          <div class="sr-weights__seg sr-weights__seg--interest" id="sr-seg-interest"><span></span></div>
+          <div class="sr-weights__handle" id="sr-handle-0" role="slider" tabindex="0"
+               aria-label="Boundary between Industry fit and Company size"></div>
+          <div class="sr-weights__handle" id="sr-handle-1" role="slider" tabindex="0"
+               aria-label="Boundary between Company size and Indicated interest"></div>
+        </div>
+        <div class="sr-weights__legend">
+          <span>Industry fit</span><span>Company size</span><span>Indicated interest</span>
+          <span class="sr-weights__hint">Drag the dividers to adjust. Weights always total 100%.</span>
+        </div>
+      </section>
+
+      <div class="sr-grid">
+        <!-- Industry fit -->
+        <section class="sr-card">
+          <h2 class="sr-card__title">Industry fit</h2>
+          <p class="sr-card__desc">Match against your target list.</p>
+
+          <div class="sr-tier">
+            <h3 class="sr-tier__label">Tier 1 · scores 100</h3>
+            <div class="sr-chips" data-tier="tier1"></div>
+          </div>
+          <div class="sr-tier">
+            <h3 class="sr-tier__label">Tier 2 · scores 70</h3>
+            <div class="sr-chips" data-tier="tier2"></div>
+          </div>
+          <div class="sr-tier">
+            <h3 class="sr-tier__label">Excluded · never shown</h3>
+            <div class="sr-chips" data-tier="excluded"></div>
+          </div>
+          <p class="sr-error" id="sr-industry-error" hidden></p>
+
+          <button type="button" class="sr-link" id="sr-edit-industries">Edit industries</button>
+        </section>
+
+        <!-- Company size -->
+        <section class="sr-card">
+          <h2 class="sr-card__title">Company size</h2>
+          <p class="sr-card__desc">Uses employees when known, otherwise revenue.</p>
+
+          <table class="sr-table sr-table--compact" id="sr-size-table">
+            <thead>
+              <tr><th>Range</th><th>Employees</th><th>Revenue</th></tr>
+            </thead>
+            <tbody id="sr-size-body"></tbody>
+          </table>
+          <p class="sr-error" id="sr-size-error" hidden></p>
+
+          <button type="button" class="sr-link" id="sr-edit-ranges">Edit ranges</button>
+        </section>
+      </div>
+
+      <!-- Indicated interest -->
+      <section class="sr-card">
+        <h2 class="sr-card__title">Indicated interest</h2>
+        <p class="sr-card__desc">Signals older than 30 days count half. The best signal sets the score, and extra signals add a small bonus.</p>
+        <table class="sr-table">
+          <thead>
+            <tr><th>Signal</th><th>Strength</th><th>Points</th></tr>
+          </thead>
+          <tbody id="sr-interest-body"></tbody>
+        </table>
+      </section>
+
+      <!-- Thresholds -->
+      <section class="sr-card">
+        <h2 class="sr-card__title">Thresholds and safeguards</h2>
+        <div class="sr-rows">
+          <label class="sr-row" for="sr-queue-min">
+            <span>Show in the review queue at or above</span>
+            <input class="sr-num" type="number" id="sr-queue-min" min="0" max="100" step="1">
+          </label>
+          <label class="sr-row" for="sr-strong-min">
+            <span>Mark as a strong lead at or above</span>
+            <input class="sr-num" type="number" id="sr-strong-min" min="0" max="100" step="1">
+          </label>
+          <label class="sr-row" for="sr-skip-days">
+            <span>Skip companies contacted in the last</span>
+            <span class="sr-num-wrap"><input class="sr-num" type="number" id="sr-skip-days" min="0" max="3650" step="1"> days</span>
+          </label>
+          <div class="sr-row">
+            <span>Require a person to approve every lead and every email</span>
+            <span class="sr-badge sr-badge--grey" title="This safeguard cannot be turned off">Always on</span>
+          </div>
+        </div>
+        <p class="sr-error" id="sr-threshold-error" hidden></p>
+      </section>
+
+      <p class="sr-footnote">Industries, ranges and weights shown are starting values for design review.</p>
+    </main>
+  </div>
+
+  <!-- Re-score confirmation dialog -->
+  <div class="sr-modal" id="sr-modal" hidden>
+    <div class="sr-modal__box" role="dialog" aria-modal="true" aria-labelledby="sr-modal-title">
+      <h2 class="sr-modal__title" id="sr-modal-title">Re-score open leads?</h2>
+      <p class="sr-modal__text" id="sr-modal-text"></p>
+      <div class="sr-modal__actions">
+        <button type="button" class="sr-btn sr-btn--secondary" id="sr-modal-cancel">Cancel</button>
+        <button type="button" class="sr-btn sr-btn--primary" id="sr-modal-confirm">Re-score</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="sr-toast" id="sr-toast" role="status" aria-live="polite" hidden></div>
+
+  <script src="js/api.js"></script>
+  <script src="scoring-rules.js"></script>
+</body>
+</html>

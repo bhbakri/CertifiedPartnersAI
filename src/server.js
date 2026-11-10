@@ -1,4 +1,6 @@
 import express from 'express';
+import { fileURLToPath } from 'node:url';
+import { dashboardRouter } from './dashboard/router.js';
 import { timingSafeEqual } from 'node:crypto';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -23,11 +25,12 @@ function escapeHtml(value) {
 
 function createHomepage() {
   const endpoints = [
-    ['/', 'GET', 'Homepage, templates, and example data'],
+    ['/', 'GET', 'Lead review dashboard'],
+    ['/reference', 'GET', 'Templates, endpoints, and workbook reference'],
     ['/health', 'GET', 'Server health check'],
     ['/templates', 'GET', 'All email templates as JSON'],
     ['/data', 'GET', 'Complete example data as JSON'],
-    ['/mcp', 'POST', 'AI connection endpoint; requires your API key']
+    ['/mcp', 'POST', 'AI connection endpoint; existing demo authentication policy']
   ];
 
   return `
@@ -306,7 +309,7 @@ export function createApp({
 
   const previewEnabled = process.env.ENABLE_PREVIEW !== 'false';
 
-  app.get('/', (_req, res) => {
+  app.get('/reference', (_req, res) => {
     if (previewEnabled) {
       return res.type('html').send(createHomepage());
     }
@@ -326,6 +329,11 @@ export function createApp({
     app.get('/data', (_req, res) => {
       res.json(workbook);
     });
+  }
+
+  if (previewEnabled) {
+    app.use('/api', dashboardRouter());
+    app.use(express.static(fileURLToPath(new URL('../public', import.meta.url))));
   }
 
   app.use('/mcp', (req, res, next) => {

@@ -10,5 +10,5 @@ services:
         value: production
       - key: NODE_VERSION
         value: 22
-      - key: MCP_API_KEY
-        generateValue: true
+      - key: ENABLE_PREVIEW
+        value: "true"
