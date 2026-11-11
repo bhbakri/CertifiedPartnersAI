@@ -7,7 +7,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { z } from 'zod';
 import { buildBrief, cases, workbook } from './selection.js';
 import { templates } from './templates.js';
-//thftfhtfthfh
+
 const reply = value => ({
   content: [{ type: 'text', text: JSON.stringify(value, null, 2) }],
   structuredContent: value
