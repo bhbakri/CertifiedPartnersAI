@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Email creator demo</title>
+<style>body{font:16px system-ui;max-width:850px;margin:30px auto;padding:0 16px}label{display:block;margin:12px 0}input,select,textarea{box-sizing:border-box;width:100%;padding:8px;font:inherit}button{padding:8px 12px;margin:6px 6px 6px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f4f4f4;padding:12px}#status{white-space:pre-wrap}fieldset{margin-top:16px}</style></head><body>
+<a href="/">Back to dashboard</a><h1>Email creator demo</h1>
+<p>Select a workbook case, review the chosen template, and generate a draft. Nothing is sent.</p>
+<p id="setup" role="status">Loading cases…</p>
+<form id="form"><fieldset id="fields" disabled>
+<label>Company / case<select id="case"></select></label>
+<label>Your name<input id="name" maxlength="200" autocomplete="name"></label>
+<label>Your company<input id="company" maxlength="200"></label>
+<label>Approved description of your offer<textarea id="offer" rows="3" maxlength="2000"></textarea></label>
+<label>Demo password (EMAIL_DEMO_KEY, not your OpenAI key)<input id="password" type="password" autocomplete="off"></label>
+<button id="preview" type="button">Show template and data</button><button id="generate" type="submit">Generate email with AI</button><button id="copy-brief" type="button">Copy prompt for ChatGPT</button>
+</fieldset></form>
+<p id="status" role="status" aria-live="polite"></p>
+<h2>Selected template</h2><p id="summary"></p><pre id="template"></pre>
+<details><summary>Data and instructions given to the AI</summary><pre id="brief"></pre></details>
+<h2>Email draft</h2><label>Subject<input id="subject" readonly></label><label>Body<textarea id="body" rows="13" readonly></textarea></label>
+<button id="copy-email" type="button" disabled>Copy email</button><pre id="notes"></pre>
+<script src="/js/email-demo.js"></script></body></html>
