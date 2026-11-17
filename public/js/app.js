@@ -56,7 +56,8 @@
         navItem('#/queue?tab=rejected', 'Rejected', route.name === 'queue' && tab === 'rejected') +
         '<div class="nav-heading">Settings</div>' +
         navItem('/scoring-rules.html', 'Scoring rules', route.name === 'rules') +
-        navItem('#/scraper', 'Scraper runs', route.name === 'scraper');
+        navItem('#/scraper', 'Scraper runs', route.name === 'scraper') +
+        navItem('/email-demo', 'Email demo', false);
     });
   };
 

@@ -1,4 +1,5 @@
 import express from 'express';
+import { emailDemoRouter } from './email-demo.js';
 import { fileURLToPath } from 'node:url';
 import { dashboardRouter } from './dashboard/router.js';
 import { timingSafeEqual } from 'node:crypto';
@@ -332,6 +333,8 @@ export function createApp({
   }
 
   if (previewEnabled) {
+    app.use('/api/email-demo', emailDemoRouter());
+    app.get('/email-demo', (_req, res) => res.sendFile(fileURLToPath(new URL('../public/email-demo.html', import.meta.url))));
     app.use('/api', dashboardRouter());
     app.use(express.static(fileURLToPath(new URL('../public', import.meta.url))));
   }
