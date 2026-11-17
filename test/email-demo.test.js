@@ -21,3 +21,28 @@ test('email demo reuses real brief and blocks ineligible cases before provider c
 });
 test('unconfigured demo permits preview without pretending to generate',async()=>{await run({apiKey:'',demoKey:''},async base=>{assert.equal((await post(base,'/brief',{case_id:'CASE-001'})).status,200);assert.equal((await post(base,'/generate',{case_id:'CASE-001'})).status,503);});});
 test('provider failure and malformed output give safe errors',async()=>{for(const response of [new Response('secret upstream details',{status:401}),Response.json({choices:[{finish_reason:'stop',message:{content:'not JSON'}}]})]){await run({apiKey:'test',demoKey:'secret',fetchImpl:async()=>response},async base=>{const r=await post(base,'/generate',{case_id:'CASE-001'});assert.equal(r.status,502);assert.ok(!JSON.stringify(r.data).includes('secret upstream details'));});}});
+
+test('OpenRouter catalog filters models, caches results and routes chosen model with server credentials',async()=>{
+ let catalogs=0,generations=0;
+ await run({apiKey:'openai-secret',openrouterKey:'router-secret',demoKey:'secret',allowedModels:'vendor/good',fetchImpl:async(url,options)=>{
+  assert.equal(options.headers.Authorization,'Bearer router-secret');
+  if(url.endsWith('/models')){catalogs++;return Response.json({data:[{id:'vendor/good',name:'Good',architecture:{output_modalities:['text']},supported_parameters:['structured_outputs']},{id:'vendor/no-schema',architecture:{output_modalities:['text']},supported_parameters:[]},{id:'vendor/not-allowed',architecture:{output_modalities:['text']},supported_parameters:['structured_outputs']}]});}
+  generations++;assert.equal(url,'https://openrouter.ai/api/v1/chat/completions');const input=JSON.parse(options.body);assert.equal(input.model,'vendor/good');assert.equal(input.provider.require_parameters,true);assert.equal(input.max_tokens,1800);assert.equal(input.response_format.type,'json_schema');assert.equal(input.store,undefined);
+  return Response.json({model:'vendor/good',choices:[{finish_reason:'stop',message:{content:JSON.stringify({subject:'Hello',body:'Draft',unresolved_fields:[],review_notes:[]})}}]});
+ }},async base=>{
+  const config=await(await fetch(base+'/cases')).json();assert.deepEqual(config.providers,['openrouter','openai']);assert.equal(config.defaultProvider,'openrouter');assert.ok(!JSON.stringify(config).includes('router-secret'));
+  const catalog=await(await fetch(base+'/models?provider=openrouter')).json();assert.deepEqual(catalog.models,[{id:'vendor/good',name:'Good'}]);
+  await fetch(base+'/models?provider=openrouter');assert.equal(catalogs,1);
+  assert.equal((await post(base,'/generate',{case_id:'CASE-001',provider:'openrouter',model:'vendor/no-schema'})).status,400);assert.equal(generations,0);
+  assert.equal((await post(base,'/generate',{case_id:'CASE-001',provider:'openrouter',model:'vendor/good'},'wrong')).status,401);
+  const result=await post(base,'/generate',{case_id:'CASE-001',provider:'openrouter',model:'vendor/good'});assert.equal(result.status,200);assert.equal(result.data.provider,'openrouter');assert.equal(result.data.requested_model,'vendor/good');assert.equal(generations,1);
+ });
+});
+test('OpenRouter catalog failures fail closed; unconfigured providers cannot generate',async()=>{
+ await run({apiKey:'',openrouterKey:'router',demoKey:'secret',fetchImpl:async()=>new Response('private upstream',{status:503})},async base=>{
+  assert.equal((await fetch(base+'/models?provider=openrouter')).status,502);
+  assert.equal((await post(base,'/generate',{case_id:'CASE-001',provider:'openrouter',model:'vendor/good'})).status,502);
+  assert.equal((await post(base,'/generate',{case_id:'CASE-001',provider:'openai'})).status,503);
+  assert.equal((await post(base,'/generate',{case_id:'CASE-001',provider:'other'})).status,400);
+ });
+});

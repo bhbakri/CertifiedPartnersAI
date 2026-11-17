@@ -6,10 +6,14 @@
 <p id="setup" role="status">Loading cases…</p>
 <form id="form"><fieldset id="fields" disabled>
 <label>Company / case<select id="case"></select></label>
+<label>AI provider<select id="provider"></select></label>
+<label>AI model<select id="model"></select></label>
+<button id="reload-models" type="button">Reload models</button>
+<p id="model-status" role="status"></p>
 <label>Your name<input id="name" maxlength="200" autocomplete="name"></label>
 <label>Your company<input id="company" maxlength="200"></label>
 <label>Approved description of your offer<textarea id="offer" rows="3" maxlength="2000"></textarea></label>
-<label>Demo password (EMAIL_DEMO_KEY, not your OpenAI key)<input id="password" type="password" autocomplete="off"></label>
+<label>Demo password (EMAIL_DEMO_KEY, not your API key)<input id="password" type="password" autocomplete="off"></label>
 <button id="preview" type="button">Show template and data</button><button id="generate" type="submit">Generate email with AI</button><button id="copy-brief" type="button">Copy prompt for ChatGPT</button>
 </fieldset></form>
 <p id="status" role="status" aria-live="polite"></p>
