@@ -41,7 +41,7 @@
   }
 
   App.renderNav = function (route) {
-    return Promise.all([Api.listLeads(), Api.getRules()]).then(function (res) {
+    return Promise.all([Api.listLeads(), Api.getRules(), Api.listProfiles()]).then(function (res) {
       var leads = res[0], rules = res[1];
       var open = leads.filter(function (l) {
         return (l.stage === 'lead' || l.stage === 'email') && !Scoring.hiddenReason(l, rules);
@@ -51,6 +51,7 @@
         route.name === 'lead' || route.name === 'email';
       document.getElementById('nav').innerHTML =
         '<div class="nav-brand">Lead Review</div>' +
+        '<div style="padding:8px 16px;font-size:12px">Profile: '+UI.esc(res[2].profiles.find(function(p){return p.id===res[2].activeProfileId;}).name)+'</div>' +
         navItem('#/queue', 'Review queue', inQueue, open) +
         navItem('#/queue?tab=sent', 'Demo approvals', route.name === 'queue' && tab === 'sent') +
         navItem('#/queue?tab=rejected', 'Rejected', route.name === 'queue' && tab === 'rejected') +

@@ -39,6 +39,21 @@
         </div>
       </header>
 
+      <section class="sr-card" aria-labelledby="profile-title">
+        <h2 class="sr-card__title" id="profile-title">Search profiles</h2>
+        <p class="sr-card__desc">Save different targeting rules for different searches. Activating a profile re-scores open leads in the shared queue; it does not run a new search.</p>
+        <p id="profile-active" role="status">Loading profiles…</p>
+        <fieldset id="profile-controls" disabled style="border:0;padding:0;margin:0">
+          <label for="profile-select">Saved profile</label>
+          <select id="profile-select" style="padding:10px;max-width:100%;margin:8px"></select>
+          <button type="button" class="sr-btn sr-btn--primary" id="profile-activate">Activate profile</button>
+          <button type="button" class="sr-btn sr-btn--secondary" id="profile-new">Save current rules as new profile</button>
+          <button type="button" class="sr-btn sr-btn--secondary" id="profile-rename">Rename</button>
+          <button type="button" class="sr-btn sr-btn--secondary" id="profile-delete">Delete</button>
+        </fieldset>
+        <p class="sr-card__desc">Save changes below updates the active profile. New copies stay inactive until you activate them.</p>
+      </section>
+
       <!-- Weights -->
       <section class="sr-card">
         <h2 class="sr-card__title">Weights</h2>

@@ -41,6 +41,9 @@
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
 
   var backendRules;
+  var activeProfileId;
+  var profileBusy = false;
+  var saving = false;
   function loadSaved() { return clone(DEFAULTS); }
   function fromBackend(r) {
     return Object.assign(clone(DEFAULTS), {weights:r.weights, industries:{tier1:r.industry.tier1,tier2:r.industry.tier2,excluded:r.industry.excluded},companySize:{employees:r.size.employees,revenue:r.size.revenue},thresholds:{queueMin:r.thresholds.queueMin,strongMin:r.thresholds.strongMin,skipDays:r.thresholds.cooldownDays,requireApproval:true}});
@@ -110,6 +113,7 @@
   }
 
   function moveBoundary(index, pct) {
+    if(profileBusy) return;
     var w = state.weights;
     pct = Math.round(pct);
     if (index === 0) {
@@ -467,6 +471,7 @@
   }
 
   async function save() {
+    if(profileBusy || saving) return false;
     if (!validateAll()) {
       if (sizeError() && !editingRanges) { editingRanges = true; renderSize(); validateSize(true); }
       toast('Fix the highlighted fields before saving.', true);
@@ -474,8 +479,11 @@
     }
     if (!isDirty()) { toast('No changes to save.'); return true; }
 
-    try { backendRules = await Api.saveRules(toBackend()); } catch (e) { toast(e.message, true); return false; }
-    savedSnapshot = JSON.stringify(state);
+    var snapshot=JSON.stringify(state);
+    saving=true;$('profile-controls').disabled=true;
+    try { backendRules = await Api.saveRules(toBackend(), activeProfileId); } catch (e) { toast(e.message, true); return false; }
+    finally {saving=false;$('profile-controls').disabled=false;}
+    savedSnapshot = snapshot;
     updateDirty();
     document.dispatchEvent(new CustomEvent('scoringrules:saved', { detail: clone(state) }));
     toast('Scoring rules saved. New leads will use these rules.');
@@ -497,6 +505,7 @@
   }
 
   async function rescore() {
+    if(profileBusy) return;
     closeModal();
     if (isDirty() && !(await save())) return;
     var btn = $('sr-rescore-btn');
@@ -524,6 +533,39 @@
     });
   }
 
+  async function refreshProfiles(selected) {
+    var data=await Api.listProfiles();
+    var select=$('profile-select');select.textContent='';
+    data.profiles.forEach(function(p){var option=document.createElement('option');option.value=p.id;option.textContent=p.name+(p.id===data.activeProfileId?' (active)':'');select.appendChild(option);});
+    select.value=selected||data.activeProfileId;
+    var active=data.profiles.find(function(p){return p.id===data.activeProfileId;});
+    $('profile-active').textContent='Active profile: '+active.name;
+    return data;
+  }
+  function initProfiles() {
+    async function action(fn) {
+      if(profileBusy || saving)return;
+      profileBusy=true;$('profile-controls').disabled=true;
+      var controls=Array.from(document.querySelectorAll('.sr-main input,.sr-main button,.sr-main select'));
+      var old=controls.map(function(c){return c.disabled;});controls.forEach(function(c){c.disabled=true;});
+      try{await fn();}catch(e){toast(e.message,true);}
+      finally{controls.forEach(function(c,i){c.disabled=old[i];});profileBusy=false;$('profile-controls').disabled=false;}
+    }
+    $('profile-new').onclick=function(){
+      if(!validateAll()){toast('Fix invalid rules first.',true);return;}
+      var name=window.prompt('Name this profile (for example: Healthcare or Small businesses)');if(!name||!name.trim())return;
+      var rules=toBackend();action(async function(){var created=await Api.createProfile(name.trim(),rules);await refreshProfiles(created.id);toast('Profile saved. Activate it when you are ready.');});
+    };
+    $('profile-activate').onclick=function(){
+      var target=$('profile-select').value;
+      if(target===activeProfileId && !isDirty()){toast('This profile is already active.');return;}
+      if(!window.confirm((isDirty()?'Discard unsaved edits? ':'')+'Activate the selected profile and re-score all open leads?'))return;
+      action(async function(){var result=await Api.activateProfile(target);activeProfileId=result.profile.id;backendRules=clone(result.profile.rules);state=fromBackend(backendRules);savedSnapshot=JSON.stringify(state);editingIndustries=false;editingRanges=false;renderAll();await refreshProfiles();toast(result.rescored+' open leads re-scored with '+result.profile.name+'.');});
+    };
+    $('profile-rename').onclick=function(){var id=$('profile-select').value;var name=window.prompt('New profile name');if(!name||!name.trim())return;action(async function(){await Api.renameProfile(id,name.trim());await refreshProfiles(id);toast('Profile renamed.');});};
+    $('profile-delete').onclick=function(){var id=$('profile-select').value;if(id===activeProfileId){toast('Activate another profile before deleting this one.',true);return;}if(!window.confirm('Delete the selected profile?'))return;action(async function(){await Api.deleteProfile(id);await refreshProfiles();toast('Profile deleted.');});};
+  }
+
   // ---------- Small public API for the rest of the project ----------
   window.LeadReviewScoring = {
     getConfig: function () { return clone(state); },
@@ -547,11 +589,13 @@
   async function init() {
     $('sr-save-btn').disabled = true;
     $('sr-rescore-btn').disabled = true;
-    try { backendRules = await Api.getRules(); state = fromBackend(backendRules); savedSnapshot = JSON.stringify(state); }
+    try { var profiles=await refreshProfiles();activeProfileId=profiles.activeProfileId;var profile=await Api.getProfile(activeProfileId);backendRules=profile.rules;state=fromBackend(backendRules);savedSnapshot=JSON.stringify(state); }
     catch(e) { toast('Unable to load rules: ' + e.message, true); return; }
     $('sr-save-btn').disabled = false;
     $('sr-rescore-btn').disabled = false;
 
+    initProfiles();
+    $('profile-controls').disabled=false;
     initWeights();
     initIndustries();
     initSize();

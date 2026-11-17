@@ -24,14 +24,16 @@
       lead.draft = lead.stage === 'lead' || lead.stage === 'rejected' ? null : buildDraft(lead);
       return lead;
     });
-    return { rules: rules, leads: leads, meta: clone(SampleData.meta) };
+    return { rules: rules, leads: leads, meta: clone(SampleData.meta), activeProfileId: 'default', profiles: [{id:'default',name:'Default',rules:clone(rules)}] };
   }
 
   function load() {
     var raw = null;
     try { raw = window.localStorage.getItem(STORE_KEY); } catch (e) { /* blocked */ }
     if (raw) {
-      try { return JSON.parse(raw); } catch (e) { /* corrupted, reseed */ }
+      var db = JSON.parse(raw);
+      if (!db.profiles) { db.activeProfileId='default'; db.profiles=[{id:'default',name:'Default',rules:clone(db.rules)}]; save(db); }
+      return db;
     }
     if (memoryFallback) return memoryFallback;
     var db = seed();
@@ -68,6 +70,21 @@
         'Thanks,\n[Sender name]\n[YOUR COMPANY]\n\n' +
         'If you would rather not hear from us, reply "unsubscribe" and we will stop.'
     };
+  }
+
+  function profile(db,id) {
+    var found=db.profiles.find(function(p){return p.id===id;});
+    if(!found) throw new Error('Profile: not found');
+    return found;
+  }
+  function uniqueName(db,name,except) {
+    if(db.profiles.some(function(p){return p.id!==except && p.name.toLowerCase()===name.toLowerCase();})) throw new Error('Profile: that name is already used');
+  }
+  function profileList(db) {return {activeProfileId:db.activeProfileId,profiles:db.profiles.map(function(p){return {id:p.id,name:p.name};})};}
+  function rescore(db) {
+    var count=0;
+    db.leads.forEach(function(l){if(l.stage==='lead'||l.stage==='email'){l.scoring=Scoring.scoreLead(l,db.rules);l.scoredAt=new Date().toISOString();l.scoringProfileId=db.activeProfileId;count++;}});
+    return count;
   }
 
   window.Api = {
@@ -144,13 +161,34 @@
       return respond(lead);
     },
 
+    listProfiles: function(){return respond(profileList(load()));},
+    getProfile: function(id){return respond(profile(load(),id));},
+    createProfile: function(name,rules){
+      var db=load();uniqueName(db,name);
+      if(db.profiles.length>=50) throw new Error('Profile: maximum of 50 profiles reached');
+      var p={id:'profile-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2),name:name,rules:clone(rules)};
+      db.profiles.push(p);save(db);return respond(p);
+    },
+    renameProfile: function(id,name){var db=load();uniqueName(db,name,id);profile(db,id).name=name;save(db);return respond(profileList(db));},
+    deleteProfile: function(id){
+      var db=load();profile(db,id);
+      if(id===db.activeProfileId) throw new Error('Profile: activate another profile before deleting this one');
+      db.profiles=db.profiles.filter(function(p){return p.id!==id;});save(db);return respond(profileList(db));
+    },
+    activateProfile: function(id){
+      var db=load();var p=profile(db,id);db.rules=clone(p.rules);db.activeProfileId=id;
+      var count=rescore(db);save(db);return respond({profile:p,rescored:count});
+    },
+
     getRules: function () {
       return respond(load().rules);
     },
 
-    saveRules: function (rules) {
+    saveRules: function (rules, expectedProfileId) {
       var db = load();
+      if(expectedProfileId && expectedProfileId!==db.activeProfileId) throw new Error('Profile: active profile changed in another session; reload before saving');
       db.rules = clone(rules);
+      profile(db,db.activeProfileId).rules=clone(rules);
       save(db);
       return respond(db.rules);
     },
@@ -158,20 +196,15 @@
     // Re-scores leads still in review (needs review + email to approve).
     rescoreOpenLeads: function () {
       var db = load();
-      var count = 0;
-      db.leads.forEach(function (lead) {
-        if (lead.stage === 'lead' || lead.stage === 'email') {
-          lead.scoring = Scoring.scoreLead(lead, db.rules);
-          lead.scoredAt = new Date().toISOString();
-          count++;
-        }
-      });
+      var count = rescore(db);
       save(db);
       return respond(count);
     },
 
     resetSampleData: function () {
+      var previous=load();
       var db = seed();
+      db.profiles=clone(previous.profiles);db.activeProfileId=previous.activeProfileId;db.rules=clone(previous.rules);rescore(db);
       save(db);
       return respond(true);
     }

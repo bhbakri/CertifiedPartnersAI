@@ -172,7 +172,7 @@
         App.views.queue(main, route);
       });
       document.getElementById('reset').addEventListener('click', function () {
-        if (!window.confirm('Reset all leads and scoring rules to the sample data? Changes in this shared demo workspace will be lost.')) return;
+        if (!window.confirm('Reset leads to the sample data? Lead changes in this shared demo workspace will be lost. Saved scoring profiles will be kept.')) return;
         Api.resetSampleData().then(function () {
           UI.toast('Sample data restored.');
           App.renderNav(route);

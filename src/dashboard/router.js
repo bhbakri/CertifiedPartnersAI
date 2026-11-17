@@ -7,7 +7,7 @@ const num=z.number().finite().min(0), score=num.max(100);
 const range=z.object({fullMin:num,fullMax:num,partialMin:num,partialMax:num}).refine(r=>r.partialMin<=r.fullMin && r.fullMin<=r.fullMax && r.fullMax<=r.partialMax,'Partial range must surround full range');
 const rules=z.object({weights:z.object({industry:score,size:score,interest:score}).refine(w=>w.industry+w.size+w.interest===100,'Weights must total 100'),industry:z.object({tier1:z.array(z.string().min(1).max(200)).max(100),tier2:z.array(z.string().min(1).max(200)).max(100),excluded:z.array(z.string().min(1).max(200)).max(100),tier1Score:score,tier2Score:score,otherScore:score}),size:z.object({employees:range,revenue:range,fullScore:score,partialScore:score,lowScore:score}),interest:z.object({halfAfterDays:num,extraSignalBonus:num.max(20)}),thresholds:z.object({queueMin:score,strongMin:score,cooldownDays:num.max(3650)}).refine(t=>t.queueMin<=t.strongMin,'Invalid thresholds')}).refine(r=>{const a=[...r.industry.tier1,...r.industry.tier2,...r.industry.excluded].map(x=>x.toLowerCase());return new Set(a).size===a.length;},'Duplicate industry');
 const id=z.string().min(1).max(100),draft=z.object({subject:z.string().max(500),body:z.string().max(30000)});
-const schemas={getMeta:z.tuple([]),listLeads:z.tuple([]),getRules:z.tuple([]),getLead:z.tuple([id]),approveLead:z.tuple([id]),rejectLead:z.tuple([id,z.string().min(1).max(2000)]),reopenLead:z.tuple([id]),saveDraft:z.tuple([id,draft]),regenerateDraft:z.tuple([id]),approveEmail:z.tuple([id,draft,z.string().datetime()]),saveRules:z.tuple([rules]),rescoreOpenLeads:z.tuple([]),resetSampleData:z.tuple([])};
+const schemas={listProfiles:z.tuple([]),getProfile:z.tuple([id]),createProfile:z.tuple([z.string().trim().min(1).max(80),rules]),renameProfile:z.tuple([id,z.string().trim().min(1).max(80)]),deleteProfile:z.tuple([id]),activateProfile:z.tuple([id]),getMeta:z.tuple([]),listLeads:z.tuple([]),getRules:z.tuple([]),getLead:z.tuple([id]),approveLead:z.tuple([id]),rejectLead:z.tuple([id,z.string().min(1).max(2000)]),reopenLead:z.tuple([id]),saveDraft:z.tuple([id,draft]),regenerateDraft:z.tuple([id]),approveEmail:z.tuple([id,draft,z.string().datetime()]),saveRules:z.union([z.tuple([rules]),z.tuple([rules,id])]),rescoreOpenLeads:z.tuple([]),resetSampleData:z.tuple([])};
 export function dashboardRouter({stateFile=process.env.DASHBOARD_STATE_FILE || resolve('.runtime/dashboard.json')}={}) {
  const router=express.Router();
  let stored=null;
@@ -42,7 +42,7 @@ export function dashboardRouter({stateFile=process.env.DASHBOARD_STATE_FILE || r
        }
      }
      res.json({value:await actions[action](...args),demo:true});
-   }catch(error){const missing=error.message.startsWith('Lead not found');res.status(missing?404:500).json({error:missing?error.message:'Unable to save or load dashboard data'});}
+   }catch(error){if(error.message.startsWith('Profile:'))return res.status(409).json({error:error.message});const missing=error.message.startsWith('Lead not found');res.status(missing?404:500).json({error:missing?error.message:'Unable to save or load dashboard data'});}
  });
  return router;
 }
